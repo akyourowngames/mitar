@@ -1,89 +1,79 @@
-import { motion } from 'framer-motion';
-import { Copy, Bookmark, Play, Bot, User } from 'lucide-react';
+import { Copy, Check, Bot, User } from 'lucide-react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import type { Message } from '@/types';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 interface MessageBubbleProps {
   message: Message;
-  index: number;
 }
 
-export function MessageBubble({ message, index }: MessageBubbleProps) {
+export function MessageBubble({ message }: MessageBubbleProps) {
+  const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(message.content);
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
-      className={cn('flex gap-3 group', isUser && 'flex-row-reverse')}
-    >
+    <div className={cn('flex gap-4 group', isUser ? 'flex-row-reverse' : '')}>
       {/* Avatar */}
       <div
         className={cn(
-          'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
-          isUser
-            ? 'bg-secondary'
-            : 'bg-primary/20 glow-primary-sm'
+          'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+          isUser ? 'bg-primary text-primary-foreground' : 'bg-secondary'
         )}
       >
         {isUser ? (
-          <User className="w-4 h-4 text-muted-foreground" />
+          <User className="w-4 h-4" />
         ) : (
-          <Bot className="w-4 h-4 text-primary" />
+          <Bot className="w-4 h-4 text-muted-foreground" />
         )}
       </div>
 
       {/* Content */}
-      <div className={cn('flex-1 max-w-[80%]', isUser && 'flex flex-col items-end')}>
+      <div className={cn('flex-1', isUser && 'flex flex-col items-end')}>
         <div
           className={cn(
-            'rounded-2xl px-4 py-3 relative',
+            'rounded-2xl px-4 py-3 max-w-[85%]',
             isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-sm'
-              : 'glass rounded-tl-sm'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-secondary-foreground'
           )}
         >
-          {message.isLoading ? (
-            <div className="flex gap-1">
-              <span className="w-2 h-2 rounded-full bg-current animate-typing" />
-              <span className="w-2 h-2 rounded-full bg-current animate-typing" style={{ animationDelay: '0.2s' }} />
-              <span className="w-2 h-2 rounded-full bg-current animate-typing" style={{ animationDelay: '0.4s' }} />
-            </div>
+          {message.content ? (
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
           ) : (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-current animate-pulse" style={{ animationDelay: '0.2s' }} />
+              <span className="w-2 h-2 rounded-full bg-current animate-pulse" style={{ animationDelay: '0.4s' }} />
+            </div>
           )}
         </div>
 
-        {/* Action bar */}
-        {!isUser && !message.isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <Button variant="ghost" size="icon-sm" onClick={handleCopy}>
-              <Copy className="w-3.5 h-3.5" />
+        {/* Actions */}
+        {!isUser && message.content && (
+          <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleCopy}
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            >
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             </Button>
-            <Button variant="ghost" size="icon-sm">
-              <Bookmark className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon-sm">
-              <Play className="w-3.5 h-3.5" />
-            </Button>
-          </motion.div>
+          </div>
         )}
-
-        {/* Timestamp */}
-        <span className="text-xs text-muted-foreground mt-1">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
       </div>
-    </motion.div>
+    </div>
   );
 }
