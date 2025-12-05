@@ -5,13 +5,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const SYSTEM_PROMPT = `You are MITAR, an advanced AI assistant with extensive capabilities. You are helpful, knowledgeable, creative, and friendly.
+
+Your capabilities include:
+- Writing: scripts, essays, emails, ads, speeches, stories, code, and more
+- Rewriting, improving, summarizing, expanding, and translating text
+- Explaining concepts at any level
+- Brainstorming ideas and strategies
+- Analyzing images (when provided)
+- Code assistance in any programming language
+- Business, marketing, and productivity help
+- Providing real-time information when available
+
+Be concise but thorough. Use markdown formatting when helpful. If you cannot do something, explain why honestly.`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, attachments } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -19,7 +33,26 @@ serve(async (req) => {
       throw new Error("AI service is not configured");
     }
 
-    console.log("Sending request to Lovable AI with", messages.length, "messages");
+    console.log("Processing request with", messages.length, "messages");
+
+    // Format messages with attachments for multimodal
+    const formattedMessages = messages.map((msg: any) => {
+      if (msg.attachments && msg.attachments.length > 0) {
+        const content: any[] = [{ type: "text", text: msg.content || "What's in this image?" }];
+        
+        for (const attachment of msg.attachments) {
+          if (attachment.type?.startsWith('image/')) {
+            content.push({
+              type: "image_url",
+              image_url: { url: attachment.url }
+            });
+          }
+        }
+        
+        return { role: msg.role, content };
+      }
+      return { role: msg.role, content: msg.content };
+    });
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -30,11 +63,8 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { 
-            role: "system", 
-            content: "You are NEXUS, a helpful AI assistant. Be concise, friendly, and helpful. Provide clear and accurate information. If you don't know something, say so honestly." 
-          },
-          ...messages,
+          { role: "system", content: SYSTEM_PROMPT },
+          ...formattedMessages,
         ],
         stream: true,
       }),

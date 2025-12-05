@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Attachment } from '@/types';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  attachments?: Attachment[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -38,6 +40,7 @@ export function useChatWithMemory(conversationId: string | null) {
           id: m.id,
           role: m.role as 'user' | 'assistant',
           content: m.content,
+          attachments: (m.attachments as unknown as Attachment[]) || [],
         })));
       }
       setInitialLoading(false);
@@ -49,25 +52,30 @@ export function useChatWithMemory(conversationId: string | null) {
   const saveMessage = useCallback(async (
     content: string, 
     role: 'user' | 'assistant',
-    convId: string
+    convId: string,
+    attachments?: Attachment[]
   ) => {
     if (!user) return;
 
-    await supabase.from('messages').insert({
+    const insertData = {
       conversation_id: convId,
       user_id: user.id,
       role,
       content,
-    });
+      attachments: attachments ? JSON.parse(JSON.stringify(attachments)) : [],
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await supabase.from('messages').insert(insertData as any);
   }, [user]);
 
-  const sendMessage = useCallback(async (content: string, convId: string) => {
+  const sendMessage = useCallback(async (content: string, convId: string, attachments?: Attachment[]) => {
     if (!user) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content,
+      attachments,
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -75,7 +83,7 @@ export function useChatWithMemory(conversationId: string | null) {
     setError(null);
 
     // Save user message
-    await saveMessage(content, 'user', convId);
+    await saveMessage(content, 'user', convId, attachments);
 
     let assistantContent = '';
     const assistantId = (Date.now() + 1).toString();
@@ -85,7 +93,7 @@ export function useChatWithMemory(conversationId: string | null) {
 
     try {
       // Include conversation history for context (memory)
-      const historyMessages = [...messages, userMessage].slice(-20); // Last 20 messages for context
+      const historyMessages = [...messages, userMessage].slice(-20);
 
       const response = await fetch(CHAT_URL, {
         method: 'POST',
@@ -96,6 +104,7 @@ export function useChatWithMemory(conversationId: string | null) {
           messages: historyMessages.map(m => ({
             role: m.role,
             content: m.content,
+            attachments: m.attachments,
           })),
         }),
       });
@@ -140,7 +149,7 @@ export function useChatWithMemory(conversationId: string | null) {
               );
             }
           } catch {
-            // Ignore parse errors for incomplete chunks
+            // Ignore parse errors
           }
         }
       }
@@ -150,7 +159,7 @@ export function useChatWithMemory(conversationId: string | null) {
         await saveMessage(assistantContent, 'assistant', convId);
       }
 
-      // Update conversation title if it's the first message
+      // Update conversation title if first message
       if (messages.length === 0) {
         const title = content.slice(0, 50) + (content.length > 50 ? '...' : '');
         await supabase

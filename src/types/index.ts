@@ -1,8 +1,17 @@
+export interface Attachment {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  size: number;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
+  attachments?: Attachment[];
+  timestamp?: Date;
   isLoading?: boolean;
 }
 
@@ -25,4 +34,19 @@ export interface Settings {
   sttProvider: string;
   ttsProvider: string;
   searchApiKey: string;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Automation {
+  id: string;
+  name: string;
+  enabled: boolean;
+  type: 'reminder' | 'schedule' | 'trigger';
+  config: Record<string, any>;
 }

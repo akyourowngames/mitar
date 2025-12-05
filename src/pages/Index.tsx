@@ -6,6 +6,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { useChatWithMemory } from '@/hooks/useChatWithMemory';
 import { motion } from 'framer-motion';
 import { useCallback } from 'react';
+import type { Attachment } from '@/types';
 
 export default function Index() {
   const { user, loading: authLoading } = useAuth();
@@ -35,7 +36,7 @@ export default function Index() {
     }
   }, [createConversation, clearMessages, setCurrentConversationId]);
 
-  const handleSendMessage = useCallback(async (content: string) => {
+  const handleSendMessage = useCallback(async (content: string, attachments?: Attachment[]) => {
     let convId = currentConversationId;
     if (!convId) {
       const conv = await createConversation('New Chat');
@@ -45,7 +46,7 @@ export default function Index() {
       }
     }
     if (convId) {
-      sendMessage(content, convId);
+      sendMessage(content, convId, attachments);
     }
   }, [currentConversationId, createConversation, sendMessage, setCurrentConversationId]);
 
